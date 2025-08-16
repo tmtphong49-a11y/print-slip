@@ -239,18 +239,24 @@
   <script type="module">
     // Import Firebase services
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
     import { getFirestore, doc, onSnapshot, runTransaction, setDoc, collection, addDoc, serverTimestamp, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
     // --- Firebase Configuration ---
-    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-weighing-app';
-    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
-    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+    const firebaseConfig = {
+      apiKey: "AIzaSyAv9NDseWrQcoBX7tlLAJejR_ZE0f_KHYk",
+      authDomain: "weight-slip-58eb1.firebaseapp.com",
+      projectId: "weight-slip-58eb1",
+      storageBucket: "weight-slip-58eb1.appspot.com",
+      messagingSenderId: "822973378659",
+      appId: "1:822973378659:web:7743d7dbcca10c35c00856",
+      measurementId: "G-12PEMGQWCC"
+    };
 
     let db;
     let counterRef;
     let historyCollectionRef;
-    let unsubscribeHistory = null; // To store the listener unsubscribe function
+    let unsubscribeHistory = null;
 
     // --- Main App Logic ---
     let parsedDataStore = [];
@@ -272,7 +278,7 @@
 
     async function printAndIncrement() {
         if (!db) {
-            showAlert("ยังไม่ได้เชื่อมต่อกับฐานข้อมูล");
+            showAlert("ยังไม่ได้เชื่อมต่อกับฐานข้อมูล กรุณาตรวจสอบการตั้งค่า Firebase Config");
             return;
         }
 
@@ -288,7 +294,6 @@
         }
 
         try {
-            // 1. Save print history
             await addDoc(historyCollectionRef, {
                 ticketNumber: ticketId,
                 vehicleId: vehicleId,
@@ -298,7 +303,6 @@
                 timestamp: serverTimestamp()
             });
 
-            // 2. Increment the counter
             await runTransaction(db, async (transaction) => {
                 const counterDoc = await transaction.get(counterRef);
                 let newCount = 1;
@@ -308,7 +312,6 @@
                 transaction.set(counterRef, { value: newCount });
             });
             
-            // 3. Print the document
             window.print();
         } catch (e) {
             console.error("Error during print and save transaction: ", e);
@@ -486,39 +489,40 @@
 
     // --- Initialization ---
     async function initialize() {
-        if (Object.keys(firebaseConfig).length > 0) {
+        if (firebaseConfig && firebaseConfig.apiKey) {
             try {
                 const app = initializeApp(firebaseConfig);
                 db = getFirestore(app);
                 const auth = getAuth(app);
 
-                if (initialAuthToken) {
-                    await signInWithCustomToken(auth, initialAuthToken);
-                } else {
-                    await signInAnonymously(auth);
-                }
+                await signInAnonymously(auth);
 
-                counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', 'ticketCounter');
-                historyCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'print_history');
+                // ** Use simplified paths **
+                counterRef = doc(db, 'counters', 'ticketCounter');
+                historyCollectionRef = collection(db, 'print_history');
 
                 onSnapshot(counterRef, (doc) => {
                     let currentCount = 1;
                     if (doc.exists()) {
                         currentCount = doc.data().value;
                     } else {
+                        // If the document doesn't exist in the new structure, create it.
                         setDoc(counterRef, { value: 1 });
                     }
                     const formattedTicket = `08-${String(currentCount).padStart(4, '0')}`;
                     document.getElementById('ticket-id-val').textContent = formattedTicket;
                 }, (error) => {
                     console.error("Error listening to counter:", error);
+                    showAlert("เกิดข้อผิดพลาดในการดึงเลขที่บัตร: " + error.message);
                 });
 
             } catch (e) {
                 console.error("Firebase initialization failed:", e);
+                showAlert("การเชื่อมต่อ Firebase ล้มเหลว: " + e.message);
             }
         } else {
             console.warn("Firebase config is missing.");
+            showAlert("กรุณาตั้งค่า Firebase Config ในโค้ดก่อนใช้งาน");
         }
 
         const creatorView = document.getElementById('creator-view');
