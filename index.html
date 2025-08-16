@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <link rel="icon" type="image/png" href="https://img.icons8.com/?size=60&id=Aw985SswKomO&format=png">
+
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ใบชั่งน้ำหนัก</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Note: Angsana New is a system font, no Google Font link is needed. It will rely on the user's system having the font. -->
+  <style>
+    /* Use Angsana New font as the base, with fallbacks */
+    body { 
+      font-family: 'Angsana New', 'Cordia New', serif; 
+    }
+    /* Print-specific styles */
+    @media print {
+      @page { 
+        size: 5.5in 9.5in; 
+        margin: 0.05in; 
+      }
+      .no-print { 
+        display: none !important; 
+      }
+      body { 
+        background-color: #ffffff !important; 
+        margin: 0; 
+      }
+      #printable-area { 
+        box-shadow: none !important; 
+        width: 100% !important; 
+        margin: 0 !important; 
+      }
+    }
+    /* Flexbox row for inline elements */
+    .row { 
+      display: flex; 
+      align-items: baseline; 
+    }
+    .row .label { 
+      white-space: nowrap; /* Prevent label text from wrapping */
+    }
+    .row .colon { 
+      text-align: center; 
+    }
+    .row .value { 
+      /* Allow value text to wrap by default */
+      white-space: normal; 
+    }
+
+    /* Default row styling for the top section */
+    .row.default .label { 
+      width: auto; 
+    }
+    .row.default .colon { 
+      width: auto; 
+      padding: 0 4px; 
+    }
+    .row.default .value { 
+      padding-left: 0; 
+      flex: 1; 
+      white-space: nowrap; /* Prevent wrapping for header values */
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Tighter row styling for date/time/weight section to align colons */
+    .row.tight { 
+      width: 100%; 
+    }
+    .row.tight .label { 
+      width: 115px; /* Fixed width to align colons */
+    }
+    .row.tight .colon { 
+      width: 10px; 
+    }
+    .row.tight .value { 
+      padding-left: 28px; /* Space after the colon */
+      flex: 1; 
+    }
+    /* Custom style for larger form controls */
+    .form-control-lg {
+        font-size: 25px !important;
+        padding: 0.5rem !important;
+    }
+    .tab-button.active {
+        border-bottom: 2px solid #3b82f6;
+        color: #3b82f6;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 text-base leading-tight">
+  <div class="w-full max-w-4xl mx-auto p-4">
+    
+    <!-- Tab Navigation -->
+    <div class="no-print mb-4 border-b border-gray-200">
+        <nav class="flex -mb-px space-x-8" aria-label="Tabs">
+            <button id="tab-creator" class="tab-button active whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg">สร้างใบชั่ง</button>
+            <button id="tab-history" class="tab-button whitespace-nowrap py-4 px-1 border-b-2 font-medium text-lg text-gray-500 hover:text-gray-700">ประวัติการพิมพ์</button>
+        </nav>
+    </div>
+
+    <!-- Creator View -->
+    <div id="creator-view">
+        <!-- Control Panel -->
+        <div class="no-print bg-white p-4 rounded-lg shadow-md mb-6 border border-gray-200">
+            <h3 class="text-lg font-bold mb-4 text-gray-700">เครื่องมือสร้างใบชั่ง</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Data Input Area -->
+                <div>
+                    <label for="paste-area" class="block text-lg font-medium text-gray-700 mb-1">1. วางข้อมูลที่คัดลอกมาที่นี่:</label>
+                    <textarea id="paste-area" rows="8" class="w-full p-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" placeholder="วางข้อมูลจาก Excel ที่นี่ โปรแกรมจะดึงข้อมูลที่จำเป็นให้เอง"></textarea>
+                    <button id="process-data-btn" class="mt-2 w-full bg-blue-600 text-white px-4 py-3 text-2xl font-bold rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                      ประมวลผลข้อมูล
+                    </button>
+                </div>
+                <!-- Manual Inputs & Actions -->
+                <div class="space-y-4">
+                     <div>
+                        <label for="do-select" class="block text-lg font-medium text-gray-700">2. เลือกเลขที่ DO:</label>
+                        <select id="do-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" disabled>
+                            <option>--- กรุณาประมวลผลข้อมูลก่อน ---</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="product-select" class="block text-lg font-medium text-gray-700">3. เลือกสินค้า:</label>
+                        <select id="product-select" class="form-control-lg mt-1 block w-full border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500">
+                            <option>เหล็กม้วนสลิต</option>
+                            <option>เหล็กม้วนสลิต + เศษรังผึ้ง</option>
+                            <option>เศษคืนลูกค้า</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="net-weight-input" class="block text-lg font-medium text-gray-700">4. ระบุน้ำหนักสุทธิ (กก.):</label>
+                        <input type="number" id="net-weight-input" class="form-control-lg mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500" placeholder="เช่น 2408">
+                    </div>
+                    <div class="text-right">
+                        <button id="print-btn" class="bg-green-600 text-white px-6 py-2 text-2xl font-bold rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                          พิมพ์บัตรชั่ง
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- The main content area to be printed -->
+        <div id="printable-area" class="w-full px-1 py-2 bg-white shadow-lg">
+          <!-- Header section -->
+          <div class="text-center">
+            <h1 class="text-[35px] font-extrabold">บริษัท ทีเอ็มที สตีล จำกัด (มหาชน)</h1>
+            <p class="text-[19px]">สาขาวังน้อย : 332-333 หมู่ที่5 ถนนพหลโยธิน ต.ลำไทร อ.วังน้อย พระนครศรีอยุธยา 13170</p>
+          </div>
+          <!-- Document title -->
+          <div class="text-center mt-2">
+            <h2 class="text-[25px] font-bold">ใบชั่งน้ำหนัก</h2>
+          </div>
+          <!-- Top info section with default layout -->
+          <div class="grid grid-cols-2 gap-x-4 mt-2 text-[24px]">
+            <div class="space-y-1">
+              <div class="row default"><span class="label">เลขที่บัตร</span><span class="colon">:</span><span id="ticket-id-val" class="value"></span></div>
+              <div class="row default"><span class="label">ทะเบียนรถ</span><span class="colon">:</span><span id="vehicle-id-val" class="value"></span></div>
+            </div>
+            <div class="space-y-1">
+              <div class="row default"><span class="label">คู่ค้า</span><span class="colon">:</span><span id="partner-name-val" class="value"></span></div>
+              <div class="row default"><span class="label">สินค้า</span><span class="colon">:</span><span id="product-name-val" class="value"></span></div>
+            </div>
+          </div>
+          <hr class="border-t border-dashed border-black my-2" />
+          <!-- Weight details section headers -->
+          <div class="grid grid-cols-2 gap-x-6 text-[24px]">
+              <h3 class="font-bold text-center">รถเข้า</h3>
+              <h3 class="font-bold text-center">รถออก</h3>
+          </div>
+          <hr class="border-t border-dashed border-black my-2" />
+          <!-- Weight details section data -->
+          <div class="grid grid-cols-2 gap-x-6 text-[24px]">
+            <div class="space-y-1">
+              <div class="row tight"><span class="label">วันที่ชั่งเข้า</span><span class="colon">:</span><span id="date-in-val" class="value"></span></div>
+              <div class="row tight"><span class="label">เวลาชั่งเข้า</span><span class="colon">:</span><span id="time-in-val" class="value"></span></div>
+              <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
+              <div class="row tight"><span class="label">น้ำหนักตามบิล</span><span class="colon">:</span><span class="value">- กก.</span></div>
+              <div class="row tight"><span class="label">น้ำหนักต่าง</span><span class="colon">:</span><span class="value">- กก.</span></div>
+            </div>
+            <div class="space-y-1">
+              <div class="row tight"><span class="label">วันที่ชั่งออก</span><span class="colon">:</span><span id="date-out-val" class="value"></span></div>
+              <div class="row tight"><span class="label">เวลาชั่งออก</span><span class="colon">:</span><span id="time-out-val" class="value"></span></div>
+              <div class="row tight"><span class="label">น้ำหนักรถเข้า</span><span class="colon">:</span><span class="value">- กก.</span></div>
+              <div class="row tight"><span class="label">น้ำหนักรถออก</span><span class="colon">:</span><span class="value">- กก.</span></div>
+              <div class="row tight"><span class="label">น้ำหนักสุทธิ</span><span class="colon">:</span><span id="net-weight-val" class="value"></span></div>
+            </div>
+          </div>
+          <hr class="border-t border-dashed border-black my-2" />
+          <!-- Notes section -->
+          <div class="mt-2 text-[24px]">
+            <div class="row tight"><span class="label">หมายเหตุ</span><span class="colon">:</span><span id="notes-val" class="value"></span></div>
+          </div>
+          <!-- Signature section -->
+          <div class="mt-1 text-right text-[24px]">
+            <p>พนักงานชั่งน้ำหนัก........................................</p>
+          </div>
+        </div>
+    </div>
+
+    <!-- History View -->
+    <div id="history-view" class="hidden">
+        <div class="bg-white p-4 rounded-lg shadow-md border border-gray-200">
+            <h3 class="text-xl font-bold mb-4 text-gray-700">ประวัติการพิมพ์วันนี้</h3>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">เลขที่บัตร</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">ทะเบียนรถ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">คู่ค้า</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">น้ำหนักสุทธิ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="history-table-body" class="bg-white divide-y divide-gray-200 text-lg">
+                        <!-- History rows will be inserted here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Custom Alert Modal -->
+    <div id="custom-alert" class="no-print hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+        <div class="bg-white p-8 rounded-lg shadow-xl text-center w-1/3">
+            <p id="custom-alert-message" class="text-2xl mb-6"></p>
+            <button id="custom-alert-close" class="bg-blue-500 text-white px-6 py-2 rounded-md text-xl hover:bg-blue-600">ตกลง</button>
+        </div>
+    </div>
+
+  </div>
+
+  <script type="module">
+    // Import Firebase services
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, doc, onSnapshot, runTransaction, setDoc, collection, addDoc, serverTimestamp, query, where, orderBy, Timestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Firebase Configuration ---
+    const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-weighing-app';
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+    let db;
+    let counterRef;
+    let historyCollectionRef;
+    let unsubscribeHistory = null; // To store the listener unsubscribe function
+
+    // --- Main App Logic ---
+    let parsedDataStore = [];
+
+    // Custom Alert Logic
+    const customAlert = document.getElementById('custom-alert');
+    const customAlertMessage = document.getElementById('custom-alert-message');
+    const customAlertClose = document.getElementById('custom-alert-close');
+
+    function showAlert(message) {
+        customAlertMessage.textContent = message;
+        customAlert.classList.remove('hidden');
+    }
+
+    customAlertClose.addEventListener('click', () => {
+        customAlert.classList.add('hidden');
+    });
+
+
+    async function printAndIncrement() {
+        if (!db) {
+            showAlert("ยังไม่ได้เชื่อมต่อกับฐานข้อมูล");
+            return;
+        }
+
+        const ticketId = document.getElementById('ticket-id-val').textContent;
+        const vehicleId = document.getElementById('vehicle-id-val').textContent;
+        const partnerName = document.getElementById('partner-name-val').textContent;
+        const productName = document.getElementById('product-name-val').textContent;
+        const netWeight = document.getElementById('net-weight-input').value;
+
+        if (!vehicleId || !partnerName) {
+            showAlert("กรุณาเลือกข้อมูล DO ก่อนพิมพ์");
+            return;
+        }
+
+        try {
+            // 1. Save print history
+            await addDoc(historyCollectionRef, {
+                ticketNumber: ticketId,
+                vehicleId: vehicleId,
+                partnerName: partnerName,
+                productName: productName,
+                netWeight: parseFloat(netWeight) || 0,
+                timestamp: serverTimestamp()
+            });
+
+            // 2. Increment the counter
+            await runTransaction(db, async (transaction) => {
+                const counterDoc = await transaction.get(counterRef);
+                let newCount = 1;
+                if (counterDoc.exists()) {
+                    newCount = counterDoc.data().value + 1;
+                }
+                transaction.set(counterRef, { value: newCount });
+            });
+            
+            // 3. Print the document
+            window.print();
+        } catch (e) {
+            console.error("Error during print and save transaction: ", e);
+            showAlert("เกิดข้อผิดพลาดในการบันทึกข้อมูล: " + e.message);
+        }
+    }
+    
+    function updateDateTime() {
+      const now = new Date();
+      const dateOptions = { day: '2-digit', month: '2-digit', year: 'numeric', calendar: 'buddhist' };
+      const formattedDate = new Intl.DateTimeFormat('th-TH', dateOptions).format(now).replace(/\//g, '/');
+      const timeOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false };
+      const formattedTime = new Intl.DateTimeFormat('en-GB', timeOptions).format(now);
+      
+      document.getElementById('date-in-val').textContent = formattedDate;
+      document.getElementById('time-in-val').textContent = formattedTime;
+      document.getElementById('date-out-val').textContent = formattedDate;
+      document.getElementById('time-out-val').textContent = formattedTime;
+    }
+
+    function processPastedData() {
+      const pasteArea = document.getElementById('paste-area');
+      const data = pasteArea.value.trim();
+      const doSelect = document.getElementById('do-select');
+
+      if (!data) {
+        showAlert('กรุณาวางข้อมูลก่อน');
+        return;
+      }
+      
+      doSelect.innerHTML = '';
+      const lines = data.split('\n');
+      const doDataMap = new Map();
+
+      lines.forEach(line => {
+        const parts = line.split('\t');
+        if (parts.length >= 6 && parts[0].trim() !== '' && parts[4].trim() !== '') {
+          const doNumber = parts[0].trim();
+          const material = parts[4].trim();
+
+          if (!doDataMap.has(doNumber)) {
+            const vehicleId = parts[1].trim();
+            const partnerName = parts[5].trim();
+            doDataMap.set(doNumber, {
+              do: doNumber,
+              vehicle: vehicleId,
+              partner: partnerName,
+              materials: new Set()
+            });
+          }
+          doDataMap.get(doNumber).materials.add(material);
+        }
+      });
+
+      parsedDataStore = Array.from(doDataMap.values());
+
+      if (parsedDataStore.length === 0) {
+        doSelect.innerHTML = '<option>ไม่พบข้อมูล DO ที่ถูกต้อง</option>';
+        doSelect.disabled = true;
+        return;
+      }
+      
+      doSelect.disabled = false;
+      const defaultOption = document.createElement('option');
+      defaultOption.textContent = '-- เลือก DO --';
+      defaultOption.value = '';
+      doSelect.appendChild(defaultOption);
+
+      parsedDataStore.forEach(entry => {
+        const option = document.createElement('option');
+        option.value = entry.do;
+        option.textContent = `${entry.do} (${entry.partner})`; 
+        doSelect.appendChild(option);
+      });
+      
+      updateFormOnDoSelect();
+    }
+    
+    function updateFormOnDoSelect() {
+        const selectedDo = document.getElementById('do-select').value;
+        const vehicleIdEl = document.getElementById('vehicle-id-val');
+        const partnerNameEl = document.getElementById('partner-name-val');
+        const notesEl = document.getElementById('notes-val');
+        const productSelect = document.getElementById('product-select');
+
+        if (selectedDo) {
+            const entry = parsedDataStore.find(item => item.do === selectedDo);
+            if (entry) {
+                vehicleIdEl.textContent = entry.vehicle;
+                partnerNameEl.textContent = entry.partner;
+                notesEl.textContent = `DO NO. ${entry.do}`;
+
+                const hasSlit = entry.materials.has('2SLIT');
+                const hasScrap = entry.materials.has('2SCRAP-W');
+
+                if (hasSlit && hasScrap) {
+                    productSelect.value = 'เหล็กม้วนสลิต + เศษรังผึ้ง';
+                } else if (hasSlit) {
+                    productSelect.value = 'เหล็กม้วนสลิต';
+                } else if (hasScrap) {
+                    productSelect.value = 'เศษคืนลูกค้า';
+                }
+                updateProduct();
+            }
+        } else {
+            vehicleIdEl.textContent = '';
+            partnerNameEl.textContent = '';
+            notesEl.textContent = '';
+            productSelect.selectedIndex = 0;
+            updateProduct();
+        }
+    }
+
+    function updateProduct() {
+        const selectedProduct = document.getElementById('product-select').value;
+        document.getElementById('product-name-val').textContent = selectedProduct;
+    }
+
+    function updateNetWeight() {
+        const weightInput = document.getElementById('net-weight-input').value;
+        const netWeight = parseFloat(weightInput) || 0;
+        document.getElementById('net-weight-val').textContent = `${netWeight.toLocaleString('en-US')} กก.`;
+    }
+
+    function loadPrintHistory() {
+        if (!db) return;
+
+        if (unsubscribeHistory) {
+            unsubscribeHistory();
+        }
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        const startOfToday = Timestamp.fromDate(today);
+        const startOfTomorrow = Timestamp.fromDate(tomorrow);
+
+        const q = query(historyCollectionRef, 
+            where("timestamp", ">=", startOfToday),
+            where("timestamp", "<", startOfTomorrow),
+            orderBy("timestamp", "desc")
+        );
+
+        unsubscribeHistory = onSnapshot(q, (querySnapshot) => {
+            const historyTableBody = document.getElementById('history-table-body');
+            historyTableBody.innerHTML = ''; // Clear existing rows
+            if (querySnapshot.empty) {
+                historyTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">ยังไม่มีข้อมูลการพิมพ์สำหรับวันนี้</td></tr>';
+            } else {
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const row = document.createElement('tr');
+                    
+                    const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH') : 'N/A';
+
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap">${data.ticketNumber}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${time}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.vehicleId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.partnerName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.productName}</td>
+                        <td class="px-6 py-4 whitespace-nowrap">${data.netWeight.toLocaleString('en-US')} กก.</td>
+                    `;
+                    historyTableBody.appendChild(row);
+                });
+            }
+        }, (error) => {
+            console.error("Error loading history:", error);
+            const historyTableBody = document.getElementById('history-table-body');
+            historyTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-red-500">ไม่สามารถโหลดข้อมูลได้</td></tr>';
+        });
+    }
+
+    // --- Initialization ---
+    async function initialize() {
+        if (Object.keys(firebaseConfig).length > 0) {
+            try {
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                const auth = getAuth(app);
+
+                if (initialAuthToken) {
+                    await signInWithCustomToken(auth, initialAuthToken);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                counterRef = doc(db, 'artifacts', appId, 'public', 'data', 'counters', 'ticketCounter');
+                historyCollectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'print_history');
+
+                onSnapshot(counterRef, (doc) => {
+                    let currentCount = 1;
+                    if (doc.exists()) {
+                        currentCount = doc.data().value;
+                    } else {
+                        setDoc(counterRef, { value: 1 });
+                    }
+                    const formattedTicket = `08-${String(currentCount).padStart(4, '0')}`;
+                    document.getElementById('ticket-id-val').textContent = formattedTicket;
+                }, (error) => {
+                    console.error("Error listening to counter:", error);
+                });
+
+            } catch (e) {
+                console.error("Firebase initialization failed:", e);
+            }
+        } else {
+            console.warn("Firebase config is missing.");
+        }
+
+        const creatorView = document.getElementById('creator-view');
+        const historyView = document.getElementById('history-view');
+        const tabCreator = document.getElementById('tab-creator');
+        const tabHistory = document.getElementById('tab-history');
+
+        tabCreator.addEventListener('click', () => {
+            creatorView.classList.remove('hidden');
+            historyView.classList.add('hidden');
+            tabCreator.classList.add('active');
+            tabHistory.classList.remove('active');
+            if (unsubscribeHistory) {
+                unsubscribeHistory();
+                unsubscribeHistory = null;
+            }
+        });
+
+        tabHistory.addEventListener('click', () => {
+            historyView.classList.remove('hidden');
+            creatorView.classList.add('hidden');
+            tabHistory.classList.add('active');
+            tabCreator.classList.remove('active');
+            loadPrintHistory();
+        });
+
+        document.getElementById('process-data-btn').addEventListener('click', processPastedData);
+        document.getElementById('print-btn').addEventListener('click', printAndIncrement);
+        document.getElementById('do-select').addEventListener('change', updateFormOnDoSelect);
+        document.getElementById('product-select').addEventListener('change', updateProduct);
+        document.getElementById('net-weight-input').addEventListener('input', updateNetWeight);
+
+        updateDateTime();
+        updateProduct();
+        updateNetWeight();
+    }
+
+    window.onload = initialize;
+  </script>
+</body>
+</html>
