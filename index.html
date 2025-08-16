@@ -89,6 +89,10 @@
         border-bottom: 2px solid #3b82f6;
         color: #3b82f6;
     }
+    .arrow-icon {
+        transition: transform 0.2s ease-in-out;
+        display: inline-block;
+    }
   </style>
 </head>
 <body class="bg-gray-100 text-base leading-tight">
@@ -210,17 +214,16 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">เลขที่บัตร</th>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">เวลา</th>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">ทะเบียนรถ</th>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">คู่ค้า</th>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">สินค้า</th>
-                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">น้ำหนักสุทธิ</th>
+                            <th scope="col" class="px-6 py-3 text-left text-lg font-medium text-gray-500 uppercase tracking-wider">รายละเอียด</th>
+                            <th scope="col" class="px-6 py-3 text-right text-lg font-medium text-gray-500 uppercase tracking-wider">น้ำหนักรวม (กก.)</th>
                         </tr>
                     </thead>
                     <tbody id="history-table-body" class="bg-white divide-y divide-gray-200 text-lg">
-                        <!-- History rows will be inserted here -->
+                        <!-- Grouped history rows will be inserted here -->
                     </tbody>
+                    <tfoot id="history-table-foot" class="bg-gray-200 font-bold text-xl">
+                        <!-- Grand total row will be inserted here -->
+                    </tfoot>
                 </table>
             </div>
         </div>
@@ -459,31 +462,84 @@
 
         unsubscribeHistory = onSnapshot(q, (querySnapshot) => {
             const historyTableBody = document.getElementById('history-table-body');
-            historyTableBody.innerHTML = ''; // Clear existing rows
-            if (querySnapshot.empty) {
-                historyTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">ยังไม่มีข้อมูลการพิมพ์สำหรับวันนี้</td></tr>';
-            } else {
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const row = document.createElement('tr');
-                    
-                    const time = data.timestamp ? data.timestamp.toDate().toLocaleTimeString('th-TH') : 'N/A';
+            const historyTableFoot = document.getElementById('history-table-foot');
+            historyTableBody.innerHTML = '';
+            historyTableFoot.innerHTML = '';
 
-                    row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap">${data.ticketNumber}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${time}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${data.vehicleId}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${data.partnerName}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${data.productName}</td>
-                        <td class="px-6 py-4 whitespace-nowrap">${data.netWeight.toLocaleString('en-US')} กก.</td>
-                    `;
-                    historyTableBody.appendChild(row);
-                });
+            if (querySnapshot.empty) {
+                historyTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4">ยังไม่มีข้อมูลการพิมพ์สำหรับวันนี้</td></tr>';
+                return;
             }
+
+            const groupedData = {};
+            let grandTotalWeight = 0;
+
+            querySnapshot.forEach((doc) => {
+                const data = doc.data();
+                const vehicleId = data.vehicleId;
+                grandTotalWeight += data.netWeight;
+
+                if (!groupedData[vehicleId]) {
+                    groupedData[vehicleId] = {
+                        records: [],
+                        totalWeight: 0
+                    };
+                }
+                groupedData[vehicleId].records.push(data);
+                groupedData[vehicleId].totalWeight += data.netWeight;
+            });
+
+            for (const vehicleId in groupedData) {
+                const group = groupedData[vehicleId];
+                
+                const headerRow = document.createElement('tr');
+                headerRow.className = 'bg-gray-100 cursor-pointer hover:bg-gray-200 group-header';
+                headerRow.dataset.target = `group-${vehicleId.replace(/\s+/g, '-')}`;
+                headerRow.innerHTML = `
+                    <td class="px-6 py-3 font-bold text-lg">
+                        <span class="arrow-icon">▶</span>
+                        ทะเบียนรถ: ${vehicleId}
+                    </td>
+                    <td class="px-6 py-3 font-bold text-lg text-right">${group.totalWeight.toLocaleString('en-US')} กก.</td>
+                `;
+                historyTableBody.appendChild(headerRow);
+
+                const detailContainer = document.createElement('tr');
+                const detailCell = document.createElement('td');
+                detailCell.colSpan = 2;
+                detailCell.className = `p-0 detail-row group-${vehicleId.replace(/\s+/g, '-')} hidden`;
+                
+                const innerTable = document.createElement('table');
+                innerTable.className = 'min-w-full';
+                
+                group.records.forEach(record => {
+                    const time = record.timestamp ? record.timestamp.toDate().toLocaleTimeString('th-TH') : 'N/A';
+                    innerTable.innerHTML += `
+                        <tr class="border-t">
+                            <td class="px-6 py-2 whitespace-nowrap pl-12">${record.ticketNumber}</td>
+                            <td class="px-6 py-2 whitespace-nowrap">${time}</td>
+                            <td class="px-6 py-2 whitespace-nowrap">${record.partnerName}</td>
+                            <td class="px-6 py-2 whitespace-nowrap">${record.productName}</td>
+                            <td class="px-6 py-2 whitespace-nowrap text-right">${record.netWeight.toLocaleString('en-US')} กก.</td>
+                        </tr>
+                    `;
+                });
+                detailCell.appendChild(innerTable);
+                detailContainer.appendChild(detailCell);
+                historyTableBody.appendChild(detailContainer);
+            }
+
+            const grandTotalRow = document.createElement('tr');
+            grandTotalRow.innerHTML = `
+                <td class="px-6 py-4 text-right">รวมน้ำหนักทั้งหมด:</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right">${grandTotalWeight.toLocaleString('en-US')} กก.</td>
+            `;
+            historyTableFoot.appendChild(grandTotalRow);
+
         }, (error) => {
             console.error("Error loading history:", error);
             const historyTableBody = document.getElementById('history-table-body');
-            historyTableBody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-red-500">ไม่สามารถโหลดข้อมูลได้</td></tr>';
+            historyTableBody.innerHTML = '<tr><td colspan="2" class="text-center py-4 text-red-500">ไม่สามารถโหลดข้อมูลได้</td></tr>';
         });
     }
 
@@ -497,7 +553,6 @@
 
                 await signInAnonymously(auth);
 
-                // ** Use simplified paths **
                 counterRef = doc(db, 'counters', 'ticketCounter');
                 historyCollectionRef = collection(db, 'print_history');
 
@@ -506,7 +561,6 @@
                     if (doc.exists()) {
                         currentCount = doc.data().value;
                     } else {
-                        // If the document doesn't exist in the new structure, create it.
                         setDoc(counterRef, { value: 1 });
                     }
                     const formattedTicket = `08-${String(currentCount).padStart(4, '0')}`;
@@ -529,6 +583,25 @@
         const historyView = document.getElementById('history-view');
         const tabCreator = document.getElementById('tab-creator');
         const tabHistory = document.getElementById('tab-history');
+        const historyTableBody = document.getElementById('history-table-body');
+
+        historyTableBody.addEventListener('click', (event) => {
+            const header = event.target.closest('.group-header');
+            if (!header) return;
+
+            const targetClass = header.dataset.target;
+            const detailRow = document.querySelector(`.detail-row.${targetClass}`);
+            const arrow = header.querySelector('.arrow-icon');
+
+            if (detailRow) {
+                detailRow.classList.toggle('hidden');
+                if (detailRow.classList.contains('hidden')) {
+                    arrow.style.transform = 'rotate(0deg)';
+                } else {
+                    arrow.style.transform = 'rotate(90deg)';
+                }
+            }
+        });
 
         tabCreator.addEventListener('click', () => {
             creatorView.classList.remove('hidden');
